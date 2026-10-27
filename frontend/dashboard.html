@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Livestock Analytics</title>
+  <link rel="stylesheet" href="/css/components.css?v=20261015_01">
+  <link rel="stylesheet" href="/css/pages.css?v=20261015_01">
+  <!-- Plotly deferred: Summary Stats does not need it on first paint -->
+</head>
+<body>
+  <header class="app-header">
+    <nav class="navbar" aria-label="Main navigation">
+
+      <!-- Zone 1: Brand Identifier -->
+      <div class="navbar-brand">
+        <h1 class="navbar-title">Livestock Dashboard</h1>
+        <span class="nav-divider" aria-hidden="true"></span>
+      </div>
+
+      <!-- Zone 2: Segmented Navigation Rail -->
+      <div class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-page="summary" role="tab" aria-selected="true"><i class="fa fa-chart-pie" aria-hidden="true"></i> Summary Stats</button>
+        <button class="nav-tab" data-page="timeseries" role="tab" aria-selected="false"><i class="fa fa-chart-line" aria-hidden="true"></i> Time Series</button>
+        <button class="nav-tab" data-page="prediction" role="tab" aria-selected="false"><i class="fa fa-arrow-trend-up" aria-hidden="true"></i> Prediction</button>
+        <button class="nav-tab" data-page="distributions" role="tab" aria-selected="false"><i class="fa fa-chart-bar" aria-hidden="true"></i> Distributions</button>
+        <button class="nav-tab" data-page="cohorts" role="tab" aria-selected="false"><i class="fa fa-layer-group" aria-hidden="true"></i> Cohorts</button>
+        <button class="nav-tab" data-page="data-management" role="tab" id="nav-data-mgmt" aria-selected="false"><i class="fa fa-table" aria-hidden="true"></i> Data Management</button>
+        <button class="nav-tab" data-page="reports" role="tab" aria-selected="false"><i class="fa fa-file-lines" aria-hidden="true"></i> Reports</button>
+      </div>
+
+      <!-- Zone 3: Utility Cluster -->
+      <div class="navbar-utilities">
+        <div class="farm-select-wrap hidden" id="farm-select-wrap">
+          <span class="farm-select-label">Farm</span>
+          <select id="farm-select" aria-label="Select farm" class="hidden"></select>
+          <div class="custom-picker custom-picker-navbar" id="picker-farm"></div>
+        </div>
+        <div class="custom-picker custom-picker-navbar hidden" id="picker-admin">
+          <button type="button" class="picker-trigger" id="admin-menu-btn" aria-haspopup="true" aria-expanded="false">
+            <span class="picker-trigger-text"><i class="fa fa-shield-halved" aria-hidden="true"></i> Admin</span>
+            <i class="fa fa-chevron-down picker-chevron" aria-hidden="true"></i>
+          </button>
+          <div class="picker-menu" role="menu" id="admin-menu">
+            <div class="picker-option-item" id="admin-action-branding" role="menuitem">
+              <span style="display:inline-flex;align-items:center;gap:8px;"><i class="fa fa-images" aria-hidden="true"></i> Farm Branding</span>
+            </div>
+            <div class="picker-option-item" id="admin-action-credentials" role="menuitem">
+              <span style="display:inline-flex;align-items:center;gap:8px;"><i class="fa fa-key" aria-hidden="true"></i> Credentials</span>
+            </div>
+          </div>
+        </div>
+        <button id="logout-btn" class="btn btn-secondary nav-logout"><i class="fa fa-sign-out-alt" aria-hidden="true"></i> Logout</button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar" id="sidebar" aria-label="Data filters">
+      <div class="sidebar-branding" id="sidebar-branding">
+        <div class="sidebar-logos" id="logo-container" aria-label="Partner and farm logos"></div>
+      </div>
+      <h2>Data Filters</h2>
+
+      <div class="filter-row">
+        <div class="form-group"><label for="picker-btn-year">Year</label><div class="custom-picker" id="picker-year"></div></div>
+        <div class="form-group"><label for="picker-btn-month">Month</label><div class="custom-picker" id="picker-month"></div></div>
+        <div class="form-group"><label for="picker-btn-day">Day</label><div class="custom-picker" id="picker-day"></div></div>
+      </div>
+      <div class="form-group" id="active-herd-section">
+        <div class="picker-header">
+          <label>Active Herd</label>
+          <span id="active-herd-badge" class="badge-neutral" style="font-size: 11px; color: var(--text-secondary);">Active: -- / -- head</span>
+        </div>
+        <div class="active-herd-grid">
+          <div class="active-herd-col">
+            <label for="btn-active-herd-toggle" class="active-herd-label">State</label>
+            <button type="button" id="btn-active-herd-toggle" class="btn btn-secondary active-herd-toggle-state-btn" aria-label="Toggle active herd filter" aria-pressed="false" title="Toggle active herd filter">
+              Off
+            </button>
+          </div>
+          <div class="active-herd-col active-herd-suboptions disabled" id="active-herd-options-window">
+            <label for="picker-btn-active_days" class="active-herd-label">Window</label>
+            <div class="custom-picker" id="picker-active-days" title="Sliding window duration"></div>
+          </div>
+          <div class="active-herd-col active-herd-suboptions disabled" id="active-herd-options-anchor">
+            <label for="picker-btn-active_ref" class="active-herd-label">Anchor</label>
+            <div class="custom-picker" id="picker-active-ref" title="Window reference anchor"></div>
+          </div>
+        </div>
+      </div>
+      <div class="filter-row-2">
+        <div class="form-group">
+          <div class="picker-header">
+            <label for="picker-btn-sex">Sex</label>
+            <div class="filter-actions">
+              <button type="button" class="filter-action-btn" data-select-all="sex">All</button>
+              <span class="action-divider">·</span>
+              <button type="button" class="filter-action-btn" data-invert="sex">Invert</button>
+            </div>
+          </div>
+          <div class="custom-picker" id="picker-sex"></div>
+        </div>
+        <div class="form-group">
+          <div class="picker-header">
+            <label for="picker-btn-treatment">Treatment</label>
+            <div class="filter-actions">
+              <button type="button" class="filter-action-btn" data-select-all="treatment">All</button>
+              <span class="action-divider">·</span>
+              <button type="button" class="filter-action-btn" data-invert="treatment">Invert</button>
+            </div>
+          </div>
+          <div class="custom-picker" id="picker-treatment"></div>
+        </div>
+      </div>
+      <div class="filter-row-2">
+        <div class="form-group">
+          <div class="picker-header">
+            <label for="picker-btn-breed">Breed</label>
+            <div class="filter-actions">
+              <button type="button" class="filter-action-btn" data-select-all="breed">All</button>
+              <span class="action-divider">·</span>
+              <button type="button" class="filter-action-btn" data-invert="breed">Invert</button>
+            </div>
+          </div>
+          <div class="custom-picker" id="picker-breed"></div>
+        </div>
+        <div class="form-group">
+          <div class="picker-header">
+            <label for="picker-btn-mob">Mob</label>
+            <div class="filter-actions">
+              <button type="button" class="filter-action-btn" data-select-all="mob">All</button>
+              <span class="action-divider">·</span>
+              <button type="button" class="filter-action-btn" data-invert="mob">Invert</button>
+            </div>
+          </div>
+          <div class="custom-picker" id="picker-mob"></div>
+        </div>
+      </div>
+      <div class="form-group hidden" id="eid-section">
+        <div class="picker-header">
+          <label for="picker-btn-eid">EID</label>
+          <div class="filter-actions">
+            <button type="button" class="filter-action-btn" data-select-all="eid">All</button>
+            <span class="action-divider">·</span>
+            <button type="button" class="filter-action-btn" data-invert="eid">Invert</button>
+          </div>
+        </div>
+        <div class="custom-picker" id="picker-eid"></div>
+      </div>
+      <div class="form-group">
+        <div class="picker-header">
+          <label for="picker-btn-measure">Measure</label>
+          <div class="filter-actions">
+            <button type="button" class="filter-action-btn" data-select-all="measure">All</button>
+            <span class="action-divider">·</span>
+            <button type="button" class="filter-action-btn" data-invert="measure">Invert</button>
+          </div>
+        </div>
+        <div class="custom-picker" id="picker-measure"></div>
+      </div>
+      <div class="form-group" id="cohort-percentile-section" style="transition:opacity 0.2s ease">
+        <label for="picker-btn-cohort_percentile">Cohort Percentile</label>
+        <div class="custom-picker" id="picker-cohort-percentile"></div>
+        <span class="field-hint" id="cohort-percentile-hint" style="display:none;font-size:var(--text-base);color:var(--text-secondary);margin-top:2px">Used on Cohorts & Reports</span>
+      </div>
+      <p class="record-count" id="record-count">Loading...</p>
+      <button class="btn btn-secondary btn-block" id="clear-filters"><i class="fa fa-rotate-left" aria-hidden="true"></i> Clear All Filters</button>
+      <div class="saved-views">
+        <h2>Saved Views</h2>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <input type="text" id="view-name" placeholder="Enter view name..." class="form-control" style="flex:1">
+          <button class="btn btn-primary btn-sm" id="save-view"><i class="fa fa-floppy-disk" aria-hidden="true"></i> Save</button>
+        </div>
+        <div id="saved-views-list"></div>
+      </div>
+    </aside>
+
+    <main class="main-content" id="page-content" role="tabpanel"></main>
+  </div>
+
+  <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle filters"><i class="fa fa-filter"></i></button>
+
+  <div id="credentials-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="credentials-title">
+    <div class="modal credentials-modal">
+      <div class="credentials-head">
+        <h3 id="credentials-title">Credential management</h3>
+        <button type="button" class="credentials-close" id="credentials-close" aria-label="Close credential panel">&times;</button>
+      </div>
+      <div class="credentials-options" role="tablist" aria-label="Credential options">
+        <button type="button" class="credentials-option active" data-cred-panel="view" role="tab" aria-selected="true">View all users</button>
+        <button type="button" class="credentials-option" data-cred-panel="username" role="tab" aria-selected="false">Change username</button>
+        <button type="button" class="credentials-option" data-cred-panel="password" role="tab" aria-selected="false">Change password</button>
+      </div>
+      <div id="cred-panel-view">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr><th>ID</th><th>Username</th><th>Password</th><th>Role</th></tr>
+            </thead>
+            <tbody id="credentials-user-rows"></tbody>
+          </table>
+        </div>
+        <p class="credentials-note">Passwords are stored as hashes and cannot be shown. Use Change password to set a new one.</p>
+      </div>
+      <form id="cred-panel-username" class="hidden">
+        <div class="form-group">
+          <label for="cred-username-user">Existing username</label>
+          <select id="cred-username-user" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label for="cred-username-new">New username</label>
+          <input type="text" id="cred-username-new" class="form-control" maxlength="50" required autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-primary">Save username</button>
+      </form>
+      <form id="cred-panel-password" class="hidden">
+        <div class="form-group">
+          <label for="cred-password-user">Existing user</label>
+          <select id="cred-password-user" class="form-control" required></select>
+        </div>
+        <div class="form-group">
+          <label for="cred-password-new">New password</label>
+          <input type="password" id="cred-password-new" class="form-control" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-primary">Save password</button>
+      </form>
+      <p id="credentials-message" class="credentials-message hidden" role="status"></p>
+    </div>
+  </div>
+
+  <div id="branding-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="branding-title">
+    <div class="modal branding-modal">
+      <div class="credentials-head">
+        <div>
+          <h3 id="branding-title">Farm branding &amp; logos</h3>
+          <p class="credentials-note" id="branding-subtitle" style="margin-top: 4px;">Active farm: <strong id="branding-farm-label">KF</strong></p>
+        </div>
+        <button type="button" class="credentials-close" id="branding-close" aria-label="Close branding panel">&times;</button>
+      </div>
+
+      <div class="branding-gallery" id="branding-gallery">
+        <!-- Loaded dynamically by /js/branding.js -->
+      </div>
+
+      <div class="branding-controls">
+        <input type="file" id="modal-logo-file-input" class="branding-file-input" accept=".png,.jpg,.jpeg,.svg">
+        <label for="modal-logo-file-input" class="btn btn-secondary btn-sm" style="cursor: pointer;">
+          Choose image...
+        </label>
+        <span id="modal-logo-file-name" style="font-size: var(--text-base); color: var(--text-secondary);">No file chosen</span>
+        <button type="button" class="btn btn-primary btn-sm" id="btn-modal-upload-logo" disabled>
+          Upload logo
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" id="btn-modal-reset-logos" style="margin-left: auto;" title="Revert to default partner logos">
+          Reset to defaults
+        </button>
+      </div>
+      <p id="branding-message" class="credentials-message hidden" role="status"></p>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var h = location.hostname, p = location.port;
+      if ((h === 'localhost' || h === '127.0.0.1' || h === '[::1]') && p && p !== '8000') {
+        window.API_URL = 'http://' + (h === '[::1]' ? 'localhost' : h) + ':8000/api';
+      }
+    })();
+  </script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/filters.js?v=20261015_01"></script>
+  <script src="/js/saved-views.js"></script>
+  <script src="/js/pages/summary.js"></script>
+  <script src="/js/pages/timeseries.js"></script>
+  <script src="/js/pages/prediction.js?v=20261020_02"></script>
+  <script src="/js/pages/distributions.js"></script>
+  <script src="/js/pages/cohorts.js"></script>
+  <script src="/js/pages/data-management.js"></script>
+  <script src="/js/pages/reports.js"></script>
+  <script src="/js/credentials.js"></script>
+  <script src="/js/branding.js"></script>
+  <script>
+    const PAGE_RENDERERS = {
+      summary: renderSummary,
+      timeseries: renderTimeseries,
+      prediction: renderPrediction,
+      distributions: renderDistributions,
+      cohorts: renderCohorts,
+      'data-management': renderDataManagement,
+      reports: renderReports,
+    };
+
+    let currentPage = 'summary';
+    let plotlyLoading = null;
+
+    function loadPlotly() {
+      if (window.Plotly) return Promise.resolve();
+      if (plotlyLoading) return plotlyLoading;
+      plotlyLoading = new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdn.plot.ly/plotly-2.27.0.min.js';
+        s.async = true;
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error('Failed to load Plotly'));
+        document.head.appendChild(s);
+      });
+      return plotlyLoading;
+    }
+
+    function renderCurrentPage(options = {}) {
+      const container = document.getElementById('page-content');
+      const renderer = PAGE_RENDERERS[currentPage];
+      if (!renderer) return;
+      const needsPlotly = ['timeseries', 'prediction', 'distributions', 'cohorts'].includes(currentPage);
+      const run = () => {
+        if (currentPage === 'timeseries' || currentPage === 'summary') {
+          renderer(container, options);
+        } else {
+          renderer(container);
+        }
+        container.classList.remove('fade-in');
+        void container.offsetWidth;
+        container.classList.add('fade-in');
+      };
+      if (needsPlotly) {
+        loadPlotly().then(run).catch((err) => {
+          container.innerHTML = `<div class="alert alert-warning">${err.message}</div>`;
+        });
+      } else {
+        run();
+      }
+    }
+
+    function switchPage(page) {
+      if (page === 'data-management' && !getUser()?.is_admin) {
+        showToast('Data Management is admin only', 'warning');
+        return;
+      }
+      currentPage = page;
+      if (typeof updateCohortPercentileModuleState === 'function') {
+        updateCohortPercentileModuleState(page);
+      }
+      if (typeof resetTimeseriesShell === 'function') resetTimeseriesShell();
+      document.querySelectorAll('.nav-tab').forEach(t => {
+        const isActive = t.dataset.page === page;
+        t.classList.toggle('active', isActive);
+        t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+      renderCurrentPage({ dimOnly: false });
+    }
+
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => switchPage(tab.dataset.page));
+    });
+
+    document.getElementById('sidebar-toggle').addEventListener('click', () => {
+      document.getElementById('sidebar').classList.toggle('open');
+    });
+
+    function onFiltersChanged(opts = {}) {
+      if (currentPage === 'data-management' && typeof resetDataManagementPage === 'function') {
+        resetDataManagementPage();
+      }
+      renderCurrentPage(opts || {});
+    }
+
+    function escapeFarmText(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function setFarmQuery(farmId) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('farm', farmId);
+      history.replaceState({}, '', url);
+    }
+
+    async function loadFarmLogos(farmId) {
+      const container = document.getElementById('logo-container');
+      if (!container) return;
+      try {
+        const res = await apiFetch(`/farms/${encodeURIComponent(farmId)}/logos`);
+        const logos = res?.logos || [];
+        if (!logos.length) {
+          container.innerHTML = '';
+          return;
+        }
+        container.innerHTML = logos.map((l) => (
+          `<img class="partner-logo" src="${escapeFarmText(resolveAssetUrl(l.url))}" alt="${escapeFarmText(l.filename || 'Logo')}" title="${escapeFarmText(l.filename || '')}">`
+        )).join('');
+      } catch (err) {
+        console.warn('Could not load logos for farm', farmId, err);
+      }
+    }
+    window.loadFarmLogos = loadFarmLogos;
+
+    async function initFarmSelector() {
+      const wrap = document.getElementById('farm-select-wrap');
+      const select = document.getElementById('farm-select');
+      const user = getUser();
+      if (!wrap || !select || !user?.is_admin) return;
+
+      let farms = Array.isArray(user.farms) ? user.farms : [];
+      try {
+        const live = await apiFetch('/farms');
+        if (Array.isArray(live) && live.length) farms = live;
+      } catch (_) { /* keep farms from the login session */ }
+
+      if (!farms.length) return;
+      const stored = getUser();
+      if (stored) {
+        stored.farms = farms.map((f) => ({
+          farm_id: f.farm_id,
+          farm_name: f.farm_name,
+          slug: f.slug,
+        }));
+        sessionStorage.setItem('user', JSON.stringify(stored));
+      }
+
+      select.innerHTML = farms.map((f) => (
+        `<option value="${escapeFarmText(f.farm_id)}">${escapeFarmText(f.farm_name)}</option>`
+      )).join('');
+
+      const allowed = new Set(farms.map((f) => f.farm_id));
+      let current = getFarmId();
+      if (!allowed.has(current)) {
+        current = farms[0].farm_id;
+        setFarmQuery(current);
+      }
+      const rawOptions = farms.map((f) => ({ value: f.farm_id, label: f.farm_name }));
+      select.value = current;
+      wrap.classList.remove('hidden');
+
+      const handleFarmChange = (nextFarm) => {
+        if (!nextFarm || nextFarm === select.value) return;
+        select.value = nextFarm;
+        setFarmQuery(nextFarm);
+        loadFarmLogos(nextFarm);
+        if (typeof resetTimeseriesShell === 'function') resetTimeseriesShell();
+        if (typeof resetDataManagementPage === 'function') resetDataManagementPage();
+        if (typeof resetFiltersForFarm === 'function') resetFiltersForFarm();
+        const main = document.getElementById('page-content');
+        const warm = typeof getFarmBootCache === 'function' && getFarmBootCache(nextFarm)?.choices;
+        // Only flash the full loading shell when this farm has never been booted.
+        if (!warm && main && typeof showLoading === 'function') showLoading(main);
+        initFilters(onFiltersChanged);
+      };
+
+      if (typeof createCustomDropdown === 'function') {
+        createCustomDropdown({
+          container: 'picker-farm',
+          field: 'farm',
+          options: rawOptions,
+          value: current,
+          onChange: handleFarmChange,
+          size: 'navbar',
+        });
+      }
+
+      select.addEventListener('change', () => {
+        handleFarmChange(select.value);
+        if (typeof updateSingleSelectPickerValue === 'function') {
+          updateSingleSelectPickerValue('farm', select.value);
+        }
+      });
+
+      // Warm the other farm(s) as soon as the selector is ready.
+      const measureHint = localStorage.getItem('livestock_last_measure') || 'finalpweight';
+      if (typeof prefetchOtherFarmBoots === 'function') {
+        setTimeout(() => prefetchOtherFarmBoots(current, measureHint), 800);
+      }
+    }
+
+    function initAdminDropdown() {
+      const pickerAdmin = document.getElementById('picker-admin');
+      const trigger = document.getElementById('admin-menu-btn');
+      const actionBranding = document.getElementById('admin-action-branding');
+      const actionCredentials = document.getElementById('admin-action-credentials');
+      const user = getUser();
+      if (!pickerAdmin || !trigger) return;
+      if (!user?.is_admin) {
+        pickerAdmin.classList.add('hidden');
+        return;
+      }
+      pickerAdmin.classList.remove('hidden');
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = pickerAdmin.classList.contains('open');
+        document.querySelectorAll('.custom-picker.open').forEach(p => {
+          if (p !== pickerAdmin) {
+            p.classList.remove('open');
+            p.querySelector('.picker-trigger')?.setAttribute('aria-expanded', 'false');
+          }
+        });
+        pickerAdmin.classList.toggle('open', !isOpen);
+        trigger.setAttribute('aria-expanded', !isOpen ? 'true' : 'false');
+      });
+
+      actionBranding?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pickerAdmin.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (typeof openBranding === 'function') openBranding();
+      });
+
+      actionCredentials?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pickerAdmin.classList.remove('open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (typeof openCredentials === 'function') openCredentials();
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      if (!requireAuth()) return;
+      const dataMgmtTab = document.getElementById('nav-data-mgmt');
+      if (dataMgmtTab && !getUser()?.is_admin) {
+        dataMgmtTab.classList.add('hidden');
+        dataMgmtTab.setAttribute('aria-hidden', 'true');
+      }
+      // Prefetch Plotly in the background after first paint path starts.
+      setTimeout(() => { loadPlotly().catch(() => {}); }, 2500);
+      initSavedViews();
+      const main = document.getElementById('page-content');
+      if (main && typeof showLoading === 'function') showLoading(main);
+      if (typeof updateCohortPercentileModuleState === 'function') {
+        updateCohortPercentileModuleState(currentPage);
+      }
+      loadFarmLogos(getFarmId());
+      await initFarmSelector();
+      initAdminDropdown();
+      initFilters(onFiltersChanged);
+    });
+  </script>
+</body>
+</html>
+
